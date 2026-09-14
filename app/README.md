@@ -1,4 +1,8 @@
-# 语音 Coding · 项目说明
+# VoiceShell OS · 语音运行时（Python 侧）
+
+> 当前架构与上手方式以根目录 [README.md](../README.md) 为准。
+> 本文是 Python 侧的实现笔记，其中「浮窗 UI / 本地 WS（8765）/ SDK 桥」几节属于早期链路，
+> 现行链路是：遥控器 → `link.py` → `asr.py` → DSH Web（4177）秘书会话 → `mcp__voice__speak` → `tts.py`。阅读时请以根 README 为准。
 
 一个纯语音交互的 AI Agent 浮窗。按住遥控器语音键说话 → 转写 → 交给 DSH Agent 执行 → 浮窗实时展示思考与工具动作 → TTS 口语汇报结果。**无任何文字输入路径**——浮窗本身就是对话界面。
 

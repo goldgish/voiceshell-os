@@ -1,7 +1,7 @@
 {
   "name": "@local/dsh-voice-input",
   "version": "0.1.0",
-  "description": "DSH Web 语音输入插件：按住小米遥控器语音键说话，松手后转写文字自动填进 composer",
+  "description": "VoiceShell OS 的 DSH 插件：sidebar 语音状态灯 + speak 工具卡片 + /voice/* 路由 + 播报纪律注入（systemPrompt 分区）与 35s 心跳",
   "license": "MIT",
   "type": "module",
   "main": "lib/index.mjs",
