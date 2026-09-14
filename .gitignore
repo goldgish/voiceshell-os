@@ -1,0 +1,47 @@
+# ============ 密钥与本地运行状态（绝不入库）============
+.env
+app/.env
+app/.python
+app/*.log
+app/*.pid
+app/voice_http.port
+app/voice_session.id
+app/history.json
+app/web_std*.log
+!app/.env.example
+
+# ============ 构建产物 ============
+__pycache__/
+*.pyc
+node_modules/
+*.egg-info/
+
+# ============ 历史实验、备份与评测留档（本地留着，不入库）============
+*.bak-*
+_archive/
+_sdkhome/
+_sdkhome2/
+_voice_home/
+_poc_workspace/
+_test_home/
+testsets/
+miremote-vibe/
+# 早期浏览器侧录音通道（8765 WS）。插件改成在线状态灯后已无人引用，本地留着，不入库。
+app/ws_server.py
+
+# ============ 内部进度 / 复盘文档（写着本机路径，不上网）============
+PROGRESS.md
+当前结构分析与迭代方向.md
+语音秘书自评与改进.md
+.trae/
+
+# ============ 一次性探针脚本 / 截图 / 落盘日志 ============
+# 命名约定：下划线开头的都是一次性调试产物
+/_*
+/app/_*
+
+# ============ 编辑器与系统 ============
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

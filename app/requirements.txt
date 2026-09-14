@@ -1,0 +1,28 @@
+# 语音运行时（app/）的 Python 依赖。装法：pip install -r app/requirements.txt
+# 需要 Python 3.11+（3.14 上实测可用）。
+
+# ---- 界面 ----
+pywebview>=5.0        # 桌面浮窗（Windows 上走 WebView2）
+pystray>=0.19         # 托盘图标
+pillow>=10.0          # 托盘图标绘制
+
+# ---- 说：TTS ----
+pygame-ce>=2.5        # mp3 播放，支持中途打断
+edge-tts>=6.1         # 合成（中文音色自然，免 key）
+
+# ---- 听：ASR ----
+zai-sdk>=0.2          # 智谱 GLM-ASR 转写
+
+# ---- 给 DSH 里的秘书会话用的 MCP 工具（speak / 会话导航 / 审批签字）----
+mcp>=1.0
+
+# ---- 蓝牙遥控器链路（link.py + atvv.py，Windows Runtime 投影）----
+winrt-runtime>=3.0 ; sys_platform == "win32"
+winrt-Windows.Foundation>=3.0 ; sys_platform == "win32"
+winrt-Windows.Foundation.Collections>=3.0 ; sys_platform == "win32"
+winrt-Windows.Storage.Streams>=3.0 ; sys_platform == "win32"
+winrt-Windows.Devices.Bluetooth>=3.0 ; sys_platform == "win32"
+winrt-Windows.Devices.Bluetooth.Advertisement>=3.0 ; sys_platform == "win32"
+winrt-Windows.Devices.Bluetooth.GenericAttributeProfile>=3.0 ; sys_platform == "win32"
+winrt-Windows.Devices.Enumeration>=3.0 ; sys_platform == "win32"
+winrt-Windows.Devices.Radios>=3.0 ; sys_platform == "win32"

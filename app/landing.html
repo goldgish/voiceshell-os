@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>语音 Coding</title>
+<style>
+  :root {
+    --bg: #0d101b; --panel: #171a26; --border: #2a2e3f;
+    --text: #e8eaf2; --dim: #9aa0b5; --accent: #4f8cff;
+    --red: #ff5a6e; --amber: #ffb454; --green: #3ddc97;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    font: 14px/1.7 "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; width: 100%; max-width: 760px;
+    padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+    background: rgba(13,16,27,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: 1px; }
+  .dots { display: flex; gap: 14px; margin-left: auto; font-size: 12px; color: var(--dim); }
+  .dot { display: inline-flex; align-items: center; gap: 5px; }
+  .dot i {
+    width: 8px; height: 8px; border-radius: 50%; background: #555; transition: .3s;
+  }
+  .dot.on i { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  #msgs {
+    width: 100%; max-width: 760px; flex: 1; padding: 18px 20px 120px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .empty { color: var(--dim); text-align: center; margin-top: 80px; font-size: 13px; }
+  .m {
+    max-width: 85%; padding: 10px 13px; border-radius: 12px;
+    font-size: 13.5px; white-space: pre-wrap; word-break: break-word;
+    animation: pop .2s ease-out;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; } }
+  .m.user {
+    align-self: flex-end; background: var(--accent); color: #fff;
+    border-bottom-right-radius: 3px;
+  }
+  .m.ai {
+    align-self: flex-start; background: var(--panel); border: 1px solid var(--border);
+    border-bottom-left-radius: 3px;
+  }
+  .m.err {
+    align-self: center; background: transparent; border: none;
+    color: var(--red); font-size: 12px;
+  }
+  .cursor {
+    display: inline-block; width: 6px; height: 13px; background: var(--accent);
+    vertical-align: -2px; animation: blink .8s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- 思考卡片 ---- */
+  .m.thinking {
+    align-self: flex-start; max-width: 92%;
+    padding: 8px 12px 8px 26px; background: rgba(255,255,255,.03);
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 12.5px; line-height: 1.6; color: var(--dim);
+    font-style: italic; position: relative; white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .m.thinking::before {
+    content: '思考'; position: absolute; left: 8px; top: 8px;
+    font-size: 10px; font-style: normal; font-weight: 600;
+    color: var(--accent); letter-spacing: .5px;
+  }
+
+  /* ---- 工具卡片 ---- */
+  .m.tool {
+    align-self: flex-start; max-width: 92%;
+    padding: 8px 12px 8px 30px;
+    background: rgba(56,189,248,.06); border: 1px solid rgba(56,189,248,.2);
+    border-radius: 10px; position: relative;
+  }
+  .m.tool .tool-name {
+    font-size: 10px; color: #38bdf8; font-weight: 600;
+    margin-right: 6px; text-transform: uppercase; letter-spacing: .4px;
+  }
+  .m.tool .tool-title {
+    font-size: 13px; color: var(--text); font-weight: 500;
+    word-break: break-word;
+  }
+  .m.tool .tool-preview {
+    font-size: 11.5px; color: var(--dim); margin-top: 3px;
+    word-break: break-all; font-family: ui-monospace, Consolas, monospace;
+  }
+  .m.tool.done { border-color: rgba(61,220,151,.25); }
+  .m.tool.fail { border-color: rgba(255,90,110,.3); background: rgba(255,90,110,.05); }
+  .tool-status-icon { font-size: 13px; margin-right: 4px; }
+  .tool-status-icon.run { color: var(--amber); animation: spin 1s linear infinite; display: inline-block; }
+  .tool-status-icon.ok { color: var(--green); }
+  .tool-status-icon.err { color: var(--red); }
+  footer {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: center;
+    background: rgba(13,16,27,.92); backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border);
+  }
+  .bar {
+    width: 100%; max-width: 760px; padding: 12px 20px;
+    display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 13px;
+  }
+  #stateDot { width: 10px; height: 10px; border-radius: 50%; background: #3a3f55; flex: none; }
+  .bar.recording #stateDot { background: var(--red); animation: pulse 1.2s infinite; }
+  .bar.recognizing #stateDot { background: var(--amber); animation: spin 1s linear infinite; }
+  .bar.done #stateDot { background: var(--green); }
+  @keyframes pulse { 50% { opacity: .5; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #wave { width: 90px; height: 22px; flex: none; opacity: 0; transition: opacity .2s; }
+  .bar.recording #wave { opacity: 1; }
+  #hint { margin-left: auto; font-size: 11px; opacity: .6; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎙 语音 Coding</h1>
+  <div class="dots">
+    <span class="dot" id="dotRemote"><i></i>遥控器</span>
+    <span class="dot" id="dotDsh"><i></i>Agent</span>
+  </div>
+</header>
+<div id="msgs"><div class="empty" id="empty">按住遥控器语音键，说一个任务</div></div>
+<footer>
+  <div class="bar" id="bar">
+    <span id="stateDot"></span>
+    <canvas id="wave" width="90" height="22"></canvas>
+    <span id="stateText">待命</span>
+    <span id="hint">语音键说话 · 播报中按键可打断</span>
+  </div>
+</footer>
+<script>
+const msgs = document.getElementById('msgs');
+const bar = document.getElementById('bar');
+const stateText = document.getElementById('stateText');
+let curAi = null, hideTimer = null;
+
+function scrollBottom() { window.scrollTo(0, document.body.scrollHeight); }
+function killEmpty() { const e = document.getElementById('empty'); if (e) e.remove(); }
+
+function addBubble(role, text) {
+  killEmpty();
+  const d = document.createElement('div');
+  d.className = 'm ' + role;
+  d.textContent = text;
+  msgs.appendChild(d);
+  scrollBottom();
+  return d;
+}
+
+function aiBubble() {
+  killEmpty();
+  curAi = document.createElement('div');
+  curAi.className = 'm ai';
+  curAi.innerHTML = '<span class="cursor"></span>';
+  msgs.appendChild(curAi);
+  scrollBottom();
+}
+
+// ---- 思考卡片 ----
+function addThinking(text) {
+  killEmpty();
+  const d = document.createElement('div');
+  d.className = 'm thinking';
+  d.textContent = text || '';
+  msgs.appendChild(d);
+  scrollBottom();
+  return d;
+}
+
+// ---- 工具卡片 ----
+const toolCards = {};   // callId → 卡片 DOM
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function addToolCard(callId, name, title, preview) {
+  killEmpty();
+  const d = document.createElement('div');
+  d.className = 'm tool';
+  d.innerHTML =
+    '<span class="tool-status-icon run">⟳</span>' +
+    '<div class="tool-title"><span class="tool-name">' + esc(name) +
+    '</span>' + esc(title) + '</div>' +
+    (preview ? '<div class="tool-preview">' + esc(preview) + '</div>' : '');
+  msgs.appendChild(d);
+  if (callId) toolCards[callId] = d;
+  scrollBottom();
+}
+function updateToolCard(callId, ok, error) {
+  const d = toolCards[callId];
+  if (!d) return;
+  const ic = d.querySelector('.tool-status-icon');
+  if (ic) { ic.className = 'tool-status-icon ' + (ok ? 'ok' : 'err'); ic.textContent = ok ? '✓' : '✗'; }
+  d.classList.add(ok ? 'done' : 'fail');
+  if (!ok && error) {
+    const e = document.createElement('div');
+    e.className = 'tool-preview'; e.style.color = 'var(--red)';
+    e.textContent = '✗ ' + error;
+    d.appendChild(e);
+  }
+}
+
+function setStatus(s) {
+  document.getElementById('dotRemote').classList.toggle('on', !!s.remote);
+  document.getElementById('dotDsh').classList.toggle('on', !!s.dsh);
+}
+
+function setState(cls, text) {
+  bar.className = 'bar' + (cls ? ' ' + cls : '');
+  stateText.textContent = text;
+}
+
+// ---- 波形 ----
+const cvs = document.getElementById('wave'), ctx = cvs.getContext('2d');
+let amps = [0,0,0,0,0];
+function drawWave() {
+  ctx.clearRect(0, 0, 90, 22);
+  ctx.fillStyle = '#ff5a6e';
+  amps.forEach((a, i) => {
+    const h = Math.max(3, a * 20);
+    ctx.fillRect(i * 19, (22 - h) / 2, 13, h);
+  });
+}
+drawWave();
+
+// ---- 事件处理（与浮窗同协议）----
+function handle(ev) {
+  switch (ev.type) {
+    case 'status':
+      // 投影层状态事件（icon+label）与连接状态事件（remote+dsh）共用 type
+      if ('remote' in ev || 'dsh' in ev) setStatus(ev);
+      else if (ev.label) setState('', ev.label);
+      break;
+    case 'recording':
+      setState('recording', '正在录音，松手结束');
+      amps = [0,0,0,0,0]; drawWave();
+      break;
+    case 'amp':
+      amps = [ev.b0, ev.b1, ev.b2, ev.b3, ev.b4]; drawWave(); break;
+    case 'recognizing': setState('recognizing', '识别中...'); break;
+    case 'user_text':
+      setState('', '待命'); addBubble('user', ev.text); break;
+    case 'assistant_start':
+      setState('', 'Agent 回复中'); aiBubble(); break;
+    case 'assistant_chunk': {
+      if (!curAi) aiBubble();
+      const cur = curAi.querySelector('.cursor');
+      if (cur) cur.remove();
+      curAi.appendChild(document.createTextNode(ev.text));
+      const c = document.createElement('span'); c.className = 'cursor';
+      curAi.appendChild(c);
+      scrollBottom();
+      break;
+    }
+    case 'assistant_done': {
+      if (curAi) { const c2 = curAi.querySelector('.cursor'); if (c2) c2.remove(); }
+      curAi = null;
+      setState('done', '完成 · 播报中');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => setState('', '待命'), 4000);
+      break;
+    }
+    case 'thinking':
+      addThinking(ev.text || '');
+      setState('', '思考中');
+      break;
+    case 'tool_call':
+      addToolCard(ev.callId, ev.name, ev.title, ev.preview);
+      setState('', '调用工具');
+      break;
+    case 'tool_result':
+      updateToolCard(ev.callId, ev.ok !== false, ev.error);
+      break;
+    case 'error':
+      setState('', '待命');
+      addBubble('err', ev.text);
+      break;
+  }
+}
+
+// ---- 初始化：历史 + 状态，然后 SSE 长连 ----
+fetch('/api/state').then(r => r.json()).then(s => {
+  setStatus(s.status || {});
+  (s.history || []).forEach(m => addBubble(m.role === 'user' ? 'user' : 'ai', m.text));
+}).catch(() => {});
+
+const es = new EventSource('/events');
+es.onmessage = (e) => { try { handle(JSON.parse(e.data)); } catch (_) {} };
+es.onerror = () => setStatus({remote: false, dsh: false});
+</script>
+</body>
+</html>

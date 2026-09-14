@@ -1,0 +1,4 @@
+# Cordis patch：把 voice-input bundle 插入 web profile 的插件树
+- insert:
+    - id: voice-input
+      name: '@local/dsh-voice-input'

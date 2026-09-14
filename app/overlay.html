@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>语音对话</title>
+<style>
+  :root {
+    --bg-card: linear-gradient(160deg, rgba(23,27,40,.94), rgba(13,16,27,.96));
+    --border: rgba(255,255,255,.09);
+    --text: rgba(255,255,255,.92);
+    --text-dim: rgba(255,255,255,.45);
+    --red: #ff5a5a;
+    --blue: #50b4ff;
+    --green: #34d399;
+    --cyan: #22d3ee;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #0d101b; overflow: hidden; }
+  body {
+    font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex;
+  }
+
+  #card {
+    flex: 1; height: 100vh;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 16px 48px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06);
+    padding: 14px 16px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    opacity: 0; transform: translateY(10px) scale(.97);
+    transition: opacity .22s ease, transform .22s cubic-bezier(.2,.9,.25,1.2);
+    user-select: none;
+    overflow: hidden;
+  }
+  #card.show { opacity: 1; transform: translateY(0) scale(1); }
+
+  /* ---- 状态行 ---- */
+  #status-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--text-dim); letter-spacing: .3px;
+    height: 20px; flex: none;
+  }
+  #status-label { color: var(--text); font-weight: 500; }
+  #timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px; color: var(--text-dim);
+  }
+  #hint { margin-left: auto; font-size: 11px; color: var(--text-dim); }
+
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--red);
+    position: relative; flex: none;
+  }
+  .dot::after {
+    content: ''; position: absolute; inset: -4px; border-radius: 50%;
+    border: 1.5px solid var(--red); opacity: .7;
+    animation: pulse 1.2s ease-out infinite;
+  }
+  @keyframes pulse {
+    0% { transform: scale(.6); opacity: .8; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  .spinner {
+    width: 12px; height: 12px; flex: none;
+    border: 2px solid rgba(80,180,255,.25); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .check { width: 14px; height: 14px; flex: none; }
+  .check circle {
+    stroke: var(--green); stroke-width: 2; fill: none;
+    stroke-dasharray: 44; stroke-dashoffset: 44;
+    animation: draw .35s ease forwards;
+  }
+  .check path {
+    stroke: var(--green); stroke-width: 2.2; fill: none;
+    stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 20; stroke-dashoffset: 20;
+    animation: draw .25s ease .25s forwards;
+  }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  .err-icon {
+    width: 13px; height: 13px; border-radius: 50%; flex: none;
+    background: rgba(255,90,90,.18); color: var(--red);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+  }
+
+  /* ---- 波形 ---- */
+  #wave-wrap {
+    flex: none; height: 46px; position: relative;
+    border-radius: 10px; background: rgba(255,255,255,.03);
+  }
+  #wave { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* ---- 对话区 ---- */
+  #chat {
+    flex: 1; min-height: 0;
+    overflow-y: auto; overflow-x: hidden;
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 2px 2px 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.15) transparent;
+  }
+  #chat::-webkit-scrollbar { width: 4px; }
+  #chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+
+  #empty {
+    margin: auto; text-align: center;
+    color: var(--text-dim); font-size: 12.5px; line-height: 1.9;
+  }
+  #empty .key {
+    display: inline-block; padding: 1px 8px; margin: 0 2px;
+    border: 1px solid rgba(255,255,255,.18); border-radius: 6px;
+    font-size: 11px; color: var(--text);
+  }
+
+  .bubble {
+    max-width: 88%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 13.5px; line-height: 1.65; color: var(--text);
+    white-space: pre-wrap; word-break: break-word;
+    user-select: text;
+    animation: bubble-in .2s ease;
+  }
+  @keyframes bubble-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: rgba(52,211,153,.14);
+    border: 1px solid rgba(52,211,153,.28);
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.assistant {
+    align-self: flex-start;
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.08);
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.assistant:empty::after {
+    content: '…'; color: var(--text-dim);
+    animation: blink 1s ease infinite;
+  }
+  @keyframes blink { 50% { opacity: .3; } }
+
+  /* ---- 思考卡片（reasoning，折叠式灰条）---- */
+  .bubble.thinking {
+    align-self: flex-start;
+    max-width: 92%;
+    padding: 5px 10px 5px 22px;
+    background: rgba(255,255,255,.025);
+    border: 1px solid rgba(255,255,255,.05);
+    border-radius: 8px;
+    font-size: 11.5px; line-height: 1.5; color: var(--text-dim);
+    font-style: italic;
+    position: relative;
+    animation: bubble-in .2s ease;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .bubble.thinking::before {
+    content: '思考'; position: absolute; left: 8px; top: 5px;
+    font-size: 9px; font-style: normal; font-weight: 600;
+    color: var(--blue); letter-spacing: .5px;
+  }
+
+  /* ---- 工具卡片（tool call，带状态图标）---- */
+  .bubble.tool {
+    align-self: flex-start;
+    max-width: 92%;
+    padding: 7px 10px 7px 26px;
+    background: rgba(34,211,238,.06);
+    border: 1px solid rgba(34,211,238,.18);
+    border-radius: 8px;
+    position: relative;
+    animation: bubble-in .2s ease;
+  }
+  .bubble.tool::before {
+    content: ''; position: absolute; left: 9px; top: 9px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(34,211,238,.2);
+  }
+  .bubble.tool .tool-status {
+    position: absolute; left: 7px; top: 7px;
+    width: 14px; height: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bubble.tool .tool-status .spinner {
+    width: 12px; height: 12px;
+    border: 2px solid rgba(34,211,238,.2); border-top-color: var(--cyan);
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  .bubble.tool .tool-status .check { width: 14px; height: 14px; }
+  .bubble.tool .tool-status .err-icon {
+    width: 14px; height: 14px; font-size: 9px;
+  }
+  .bubble.tool .tool-title {
+    font-size: 12.5px; color: var(--text); font-weight: 500;
+    line-height: 1.45; word-break: break-word;
+  }
+  .bubble.tool .tool-name {
+    font-size: 10px; color: var(--cyan); font-weight: 600;
+    margin-right: 5px; text-transform: uppercase; letter-spacing: .4px;
+  }
+  .bubble.tool .tool-preview {
+    font-size: 10.5px; color: var(--text-dim); line-height: 1.45;
+    margin-top: 2px; word-break: break-all;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  .bubble.tool.done { border-color: rgba(52,211,153,.22); }
+  .bubble.tool.fail { border-color: rgba(255,90,90,.25); background: rgba(255,90,90,.05); }
+</style>
+</head>
+<body>
+<div id="card">
+  <div id="status-row">
+    <span id="status-icon"></span>
+    <span id="status-label">就绪</span>
+    <span id="timer" hidden>0.0s</span>
+    <span id="hint"></span>
+  </div>
+  <div id="wave-wrap"><canvas id="wave"></canvas></div>
+  <div id="chat">
+    <div id="empty">按住遥控器 <span class="key">语音键</span> 说话<br>松开后发送给 Agent，回复流式显示在这里</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var card = document.getElementById('card');
+  var iconEl = document.getElementById('status-icon');
+  var labelEl = document.getElementById('status-label');
+  var timerEl = document.getElementById('timer');
+  var hintEl = document.getElementById('hint');
+  var chatEl = document.getElementById('chat');
+  var emptyEl = document.getElementById('empty');
+  var canvas = document.getElementById('wave');
+  var ctx = canvas.getContext('2d');
+
+  var ICONS = {
+    dot: '<span class="dot"></span>',
+    spinner: '<span class="spinner"></span>',
+    check: '<svg class="check" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7"/><path d="M5.5 9.2 L8 11.5 L12.5 6.8"/></svg>',
+    err: '<span class="err-icon">!</span>',
+    none: ''
+  };
+
+  // ---- 波形状态 ----
+  var BAR_COUNT = 56;
+  var amps = new Float32Array(BAR_COUNT);
+  var display = new Float32Array(BAR_COUNT);
+  var ampIdx = 0;
+  var recording = false;
+
+  function pushAmp(a) {
+    amps[ampIdx % BAR_COUNT] = Math.min(1, a);
+    ampIdx++;
+    amps[ampIdx % BAR_COUNT] = 0;
+  }
+
+  function resizeCanvas() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  var grad = null;
+  function draw() {
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    if (w > 0 && h > 0) {
+      if (!grad) {
+        grad = ctx.createLinearGradient(0, 0, w, 0);
+        grad.addColorStop(0, '#34d399');
+        grad.addColorStop(1, '#22d3ee');
+      }
+      ctx.clearRect(0, 0, w, h);
+      var gap = 3;
+      var bw = Math.max(2, (w - gap * (BAR_COUNT - 1)) / BAR_COUNT);
+      var mid = h / 2;
+      ctx.fillStyle = grad;
+      for (var i = 0; i < BAR_COUNT; i++) {
+        var target = recording ? amps[i] : 0;
+        display[i] += (target - display[i]) * 0.22;
+        if (Math.abs(display[i]) < 0.004) display[i] = 0;
+        var bh = Math.max(3, display[i] * (h - 6));
+        var x = i * (bw + gap);
+        var y = mid - bh / 2;
+        var r = Math.min(bw / 2, bh / 2);
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, r);
+        else ctx.rect(x, y, bw, bh);
+        ctx.fill();
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+
+  // ---- 录音计时 ----
+  var recStart = 0, timerId = null;
+  function startTimer() {
+    recStart = performance.now();
+    timerEl.hidden = false;
+    timerId = setInterval(function () {
+      timerEl.textContent = ((performance.now() - recStart) / 1000).toFixed(1) + 's';
+    }, 100);
+  }
+  function stopTimer() {
+    if (timerId) { clearInterval(timerId); timerId = null; }
+    timerEl.hidden = true;
+  }
+
+  // ---- 气泡 ----
+  function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
+
+  function addBubble(cls, text) {
+    if (emptyEl) { emptyEl.remove(); emptyEl = null; }
+    var d = document.createElement('div');
+    d.className = 'bubble ' + cls;
+    d.textContent = text || '';
+    chatEl.appendChild(d);
+    while (chatEl.children.length > 40) chatEl.removeChild(chatEl.firstChild);
+    scrollBottom();
+    return d;
+  }
+
+  var curAssistant = null;
+  var toolCards = {};   // callId → 卡片 DOM，工具调用→结果配对用
+
+  // ---- 思考卡片 ----
+  function addThinking(text) {
+    if (emptyEl) { emptyEl.remove(); emptyEl = null; }
+    var d = document.createElement('div');
+    d.className = 'bubble thinking';
+    d.textContent = text || '';
+    d.style.whiteSpace = 'pre-wrap';
+    chatEl.appendChild(d);
+    while (chatEl.children.length > 40) chatEl.removeChild(chatEl.firstChild);
+    scrollBottom();
+    return d;
+  }
+
+  // ---- 工具卡片（带状态图标 spinner→check/err）----
+  function addToolCard(callId, name, title, preview) {
+    if (emptyEl) { emptyEl.remove(); emptyEl = null; }
+    var d = document.createElement('div');
+    d.className = 'bubble tool';
+    d.innerHTML =
+      '<span class="tool-status">' + ICONS.spinner + '</span>' +
+      '<div class="tool-title"><span class="tool-name">' + escapeHtml(name) +
+      '</span>' + escapeHtml(title) + '</div>' +
+      (preview ? '<div class="tool-preview">' + escapeHtml(preview) + '</div>' : '');
+    chatEl.appendChild(d);
+    while (chatEl.children.length > 40) chatEl.removeChild(chatEl.firstChild);
+    if (callId) toolCards[callId] = d;
+    scrollBottom();
+    return d;
+  }
+
+  function updateToolCard(callId, ok, error) {
+    var d = toolCards[callId];
+    if (!d) return;
+    var st = d.querySelector('.tool-status');
+    if (st) st.innerHTML = ok ? ICONS.check : ICONS.err;
+    d.classList.add(ok ? 'done' : 'fail');
+    // 失败时追加 errorSummary（参考 dsh-TUI ToolRowModel.errorSummary）
+    if (!ok && error) {
+      var e = document.createElement('div');
+      e.className = 'tool-preview';
+      e.style.color = 'var(--red)';
+      e.textContent = '✗ ' + error;
+      d.appendChild(e);
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ---- 状态行 ----
+  function setStatus(icon, label, hint) {
+    iconEl.innerHTML = icon;
+    labelEl.textContent = label;
+    hintEl.textContent = hint || '';
+  }
+
+  // ---- Python → JS 事件入口 ----
+  window.onVoiceEvent = function (ev) {
+    if (!ev || !ev.type) return;
+    switch (ev.type) {
+      case 'show':
+        resizeCanvas();
+        card.classList.add('show');
+        break;
+      case 'recording':
+        card.classList.add('show');
+        recording = true;
+        amps.fill(0); display.fill(0); ampIdx = 0;
+        setStatus(ICONS.dot, '正在录音', '松开发送给 Agent');
+        startTimer();
+        break;
+      case 'frame':
+        if (recording) pushAmp(ev.amp || 0);
+        break;
+      case 'recognizing':
+        recording = false;
+        stopTimer();
+        setStatus(ICONS.spinner, '识别中…');
+        break;
+      case 'user_text':
+        recording = false;
+        stopTimer();
+        addBubble('user', ev.text || '');
+        setStatus(ICONS.spinner, '等待回复…');
+        break;
+      case 'assistant_start':
+        curAssistant = addBubble('assistant', '');
+        setStatus(ICONS.spinner, '回复中…');
+        break;
+      case 'assistant_chunk':
+        if (!curAssistant) curAssistant = addBubble('assistant', '');
+        curAssistant.textContent += ev.text || '';
+        scrollBottom();
+        break;
+      case 'assistant_done':
+        curAssistant = null;
+        setStatus(ICONS.check, '完成', '按住语音键继续');
+        break;
+      case 'thinking':
+        addThinking(ev.text || '');
+        setStatus(ICONS.spinner, '思考中');
+        break;
+      case 'tool_call':
+        addToolCard(ev.callId, ev.name, ev.title, ev.preview);
+        setStatus(ICONS.spinner, '调用工具');
+        break;
+      case 'tool_result':
+        updateToolCard(ev.callId, ev.ok !== false, ev.error);
+        break;
+      case 'status':
+        // 投影层状态切换：thinking/tool/responding/done
+        if (ev.icon === 'thinking') setStatus(ICONS.spinner, ev.label || '思考中');
+        else if (ev.icon === 'tool') setStatus(ICONS.spinner, ev.label || '调用工具');
+        else if (ev.icon === 'done') setStatus(ICONS.check, ev.label || '完成');
+        else setStatus(ICONS.spinner, ev.label || '');
+        break;
+      case 'error':
+        recording = false;
+        stopTimer();
+        curAssistant = null;
+        setStatus(ICONS.err, '失败', ev.text || '未知错误');
+        break;
+    }
+  };
+
+  resizeCanvas();
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

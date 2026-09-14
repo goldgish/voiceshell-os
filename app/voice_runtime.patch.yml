@@ -1,0 +1,11 @@
+# 语音运行时补丁：把 dsh-mcp-client 挂到本地语音 MCP 服务器（speak 工具）
+# 由 dsh_sdk_bridge 以 --patch 传入（patches=(本文件,)）
+- insert:
+    - id: mcp-voice
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: voice
+        transport: stdio
+        command: C:\Users\60512\AppData\Local\Programs\Python\Python314\python.exe
+        args:
+          - C:\Users\60512\语音coding\app\dsh_voice_mcp.py
