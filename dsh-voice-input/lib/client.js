@@ -29,8 +29,11 @@ module.exports = __toCommonJS(index_exports);
 // src/client/VoiceButton.tsx
 var import_react = require("react");
 var import_jsx_runtime = require("react/jsx-runtime");
+var ROOMY_WIDTH = 96;
 function VoiceButton() {
   const [phase, setPhase] = (0, import_react.useState)("checking");
+  const [roomy, setRoomy] = (0, import_react.useState)(false);
+  const boxRef = (0, import_react.useRef)(null);
   (0, import_react.useEffect)(() => {
     let alive = true;
     const poll = async () => {
@@ -49,14 +52,28 @@ function VoiceButton() {
       clearInterval(timer);
     };
   }, []);
+  (0, import_react.useEffect)(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const measure = () => setRoomy(el.clientWidth >= ROOMY_WIDTH);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const color = phase === "online" ? "#3fb950" : phase === "offline" ? "#8b949e" : "#d29922";
   const label = phase === "online" ? "\u8BED\u97F3\u5728\u7EBF" : phase === "offline" ? "\u8BED\u97F3\u79BB\u7EBF" : "\u8BED\u97F3\u2026";
   const title = phase === "online" ? "\u6309\u4F4F\u9065\u63A7\u5668\u8BED\u97F3\u952E\u8BF4\u8BDD\uFF0C\u677E\u624B\u5373\u53D1\u9001\u7ED9\u79D8\u4E66" : "\u8BED\u97F3\u8FD0\u884C\u65F6\u672A\u542F\u52A8\uFF1A\u53CC\u51FB\u4ED3\u5E93\u6839\u76EE\u5F55\u7684\u300C\u542F\u52A8.bat\u300D";
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
     "span",
     {
+      ref: boxRef,
       title,
       style: {
+        // width:100% 是为了让 clientWidth 等于这一格真正能用的宽度（不随文字有无而变），
+        // 否则隐藏文字会让测量值缩小，跟 ResizeObserver 打回声。
+        width: "100%",
+        boxSizing: "border-box",
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
@@ -81,7 +98,7 @@ function VoiceButton() {
             }
           }
         ),
-        label
+        roomy ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { whiteSpace: "nowrap" }, children: label }) : null
       ]
     }
   );
