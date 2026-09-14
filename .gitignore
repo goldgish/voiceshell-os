@@ -16,7 +16,7 @@ __pycache__/
 node_modules/
 *.egg-info/
 
-# ============ 历史实验、备份与评测留档（本地留着，不入库）============
+# ============ 历史实验与备份（本地留着，不入库）============
 *.bak-*
 _archive/
 _sdkhome/
@@ -24,8 +24,23 @@ _sdkhome2/
 _voice_home/
 _poc_workspace/
 _test_home/
-testsets/
 miremote-vibe/
+
+# ============ 评测留档（本地留着，不入库）============
+# 报告与轨迹体积大、且写着本机路径，不入库；
+# 用例 / 评测标准 / 跑器 / 回归自测入库——别人 clone 下来能自己复跑验证。
+testsets/
+!app/testsets/
+app/testsets/*
+!app/testsets/README.md
+!app/testsets/EVAL_STANDARD.md
+!app/testsets/voice_broadcast_cases.json
+!app/testsets/_run_tests.py
+!app/testsets/_selftest_all.py
+!app/testsets/_selftest_tts_queue.py
+!app/testsets/_selftest_judge_parse.py
+!app/testsets/_check_prompt_drift.py
+
 # 早期浏览器侧录音通道（8765 WS）。插件改成在线状态灯后已无人引用，本地留着，不入库。
 app/ws_server.py
 
